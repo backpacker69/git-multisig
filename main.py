@@ -4,12 +4,13 @@ import json
 import time
 from decimal import Decimal
 
+test_address ="BT9AWq9r1i6kghZc6LtrvNb2wRFh7JLCdP"
 
-reference_gits =  {"dc-tcs" : "https://github.com/dc-tcs/flot-operations.git"}
+reference_gits =  {"dc-tcs" : "https://github.com/dc-tcs/flot-operations.git",
+        "test" : "https://github.com/dc-tcs/flot-operations-test.git"}
 
 my_id = "dc-tcs"
-
-my_git = "flot-operations"
+my_git = os.path.join(".","flot-operations")
 
 def call_rpc(args):
     nud_path = 'nud'
@@ -22,36 +23,47 @@ CURRENCY_NBT = 0
 CURRENCY_NSR = 1
 CURRENCY_BTC = 2
 
-class Address:
-    def __init__(self, addr, unit):
+class AddressInfo:
+    def __init__(self, addr, unit, root = my_git):
         self.address = addr
         self.spendable = []
         self.unit = unit
         self.last_block = 0
+        self.signed_tx = ""
+        self.signed_ids = []
 
         spendable = []
 
-        addr_file_path = os.path.join(".",my_git,"addresses",addr)
+        addr_path = os.path.join(root, addr)
 
-        if os.path.isfile(addr_file_path):
-            with open(addr_file_path,"r") as f:
-                l = 0
-                cur_tx = ""
-                for line in f:
-                    if l == 0:
-                        self.last_block = int(line)
-                    elif l % 2 == 1:
-                        cur_tx = line.strip()
-                    else:
-                        spendable.append((cur_tx,Decimal(line)))
-                    l += 1
+        if os.path.isdir(addr_path):
+            addr_unspent_path = os.path.join(addr_path,'unspent')
+            addr_tx_path = os.path.join(addr_path,'tx')
 
-        self.spendable = sorted(spendable, key=lambda x: x[1])
+            if os.path.isfile(addr_unspent_path):
+                with open(addr_unspent_path,"r") as f:
+                    l = 0
+                    cur_tx = ""
+                    for line in f:
+                        if l == 0:
+                            self.last_block = int(line)
+                        elif l % 2 == 1:
+                            cur_tx = line.strip()
+                        else:
+                            spendable.append((cur_tx,Decimal(line)))
+                        l += 1
+            self.spendable = sorted(spendable, key=lambda x: x[1])
+
+        else:
+            if not os.path.exists(addr_path):
+                os.makedirs(addr_path)
+                #TODO: initialize unspent and tx files
     def get_spendable(self):
         return self.spendable
 
     def update_outputs(self):
         pass
+        #TODO: push to own repo
 
     def get_spend_info(self, amount):
         sum = Decimal(0)
@@ -107,12 +119,44 @@ def sign_and_push(raw_tx, my_addr, list_signed):
             f.writeline(my_id)
         git_update(git_folder)
 
-a = Address("BT9AWq9r1i6kghZc6LtrvNb2wRFh7JLCdP", CURRENCY_NBT)
-for s in a.get_spendable():
-    print "    txid:",s[0]
-    print "  Amount:",s[1]
+root_ref = os.path.join(".","notmine")
+
+def fetch_data(address_info):
+    newest_spendable = address_info.spendable
+    current_last_block = address_info.last_block
+
+    for key, value in reference_gits.iteritems():
+        git_folder = os.path.join(root_ref,key)
+
+        if not os.path.exists(git_folder):
+            subprocess.call(['git', 'clone', value, git_folder])
+
+        try:
+            s = subprocess.check_output(['git', '-C', git_folder, 'fetch', '--dry-run'])
+            if s == "":
+                print "Reference", key, "is up-to-date."
+            else:
+                subprocess.call(['git', '-C', git_folder, 'fetch'])
+
+            if not os.path.exists(git_folder):
+                subprocess.call(['git', 'clone', value, git_folder])
+
+            a = AddressInfo(address_info.address, CURRENCY_NBT, root = git_folder)
+
+            if a.last_block > current_last_block:
+                print "Newer snapshot found for spendable from:", key
+                newest_spendable = a.spendable
+                current_last_block = a.last_block
+        except:
+            print "Error!"
+
+
+    return newest_spendable
+    #TODO: return latest transaction?
+
+a = AddressInfo(test_address, CURRENCY_NBT)
+
+a.spendable = fetch_data(a)
 
 print a.get_spend_info("11.1")
 print create_raw_transaction("11.1", a, "testqqqqq")
-
-git_update(".")
