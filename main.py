@@ -12,7 +12,6 @@
 #     See the License for the specific language governing permissions and
 #     limitations under the License.
 
-
 import subprocess
 import os
 import json
@@ -23,7 +22,8 @@ CURRENCY_NBT = 0
 CURRENCY_NSR = 1
 CURRENCY_BTC = 2
 
-test_address ="BT9AWq9r1i6kghZc6LtrvNb2wRFh7JLCdP"
+test_address = "BT9AWq9r1i6kghZc6LtrvNb2wRFh7JLCdP"
+test_addresses = set(["BT9AWq9r1i6kghZc6LtrvNb2wRFh7JLCdP"])
 
 reference_gits =  {"dc-tcs" : "https://github.com/dc-tcs/flot-operations.git",
         "test" : "https://github.com/dc-tcs/flot-operations-test.git"}
@@ -33,37 +33,39 @@ my_git = os.path.join(".","flot-operations")
 
 def call_rpc(args):
     nud_path = 'nud'
+    args = [str(arg) for arg in args]
     call_args = [nud_path] + args
 
-    return call_args
-    #return subprocess.check_output(call_args)
-
+    return subprocess.check_output(call_args)
 
 class BlockchainStream:
     def __init__(self, start_height, monitor):
         self.height = start_height
-        self.current_block = subprocess.check_output([NUD_PATH,"getblockhash", start_height])
+        self.next_block = call_rpc(["getblockhash", start_height])
         self.monitor = monitor
 
     def advance(self):
-        if self.current_block:
-            s_json = json.loads(call_rpc(["getblock", self.current_block]))
+        if self.next_block:
+            s_json = json.loads(call_rpc(["getblock", self.next_block]))
 
-            self.current_block = s_json[u'nextblockhash']
+            self.next_block = s_json.get(u'nextblockhash')
+
+            if self.next_block:
+                self.height += 1
             return self.monitor(s_json)
         else:
             return None
 
 class AddressInfo:
-    def __init__(self, addr, unit, root = my_git):
+    def __init__(self, addr, addrs, unit, root = my_git):
         self.address = addr
+        self.addresses = addrs
+
         self.unspent = set()
         self.unit = unit
         self.last_block = 0
         self.signed_tx = ""
         self.signed_ids = []
-
-        unspent = []
 
         addr_path = os.path.join(root, addr)
 
@@ -84,7 +86,7 @@ class AddressInfo:
                         elif l % 3 == 2:
                             amount = Decimal(line)
                         else:
-                            unspent.add((cur_tx,amount,int(line.strip())))
+                            self.unspent.add((cur_tx,amount,int(line.strip())))
                         l += 1
 
         else:
@@ -95,51 +97,62 @@ class AddressInfo:
         return self.unspent
 
     def unspent_monitor(self, s_json):
+        flag_changes = 0
+        unspent_minus = set()
+        unspent_plus = set()
+
         for txid in s_json[u'tx']:
-            flag_changes = 0
-            unspent_minus = set()
-            unspent_plus = set()
-            try:
-                with open(os.devnull, "w") as fnull:
-                    t_out = subprocess.check_output([NUD_PATH,"getrawtransaction", txid, "1"])
+            t_out = call_rpc(["getrawtransaction", txid, "1"])
 
-                t_json = json.loads(t_out)
+            t_json = json.loads(t_out)
 
-                if t_out[u'unit'] == u'B':
-                    for vi_json in t_json.get(u'vin'):
-                        #Remove used inputs
-                        vin_tx = vi_json.get(u'txid')
-                        vin_tx_json = call_rpc(["getrawtransaction", vin_tx, "1"])
-                        for vo_json in vin_tx_json.get(u'vout'):
-                            if vo_json.get(u'addresses') = self.address:
+            if t_json[u'unit'] == u'B':
+                for vi_json in t_json.get(u'vin'):
+                    #Remove used inputs
+                    vin_txid = vi_json.get(u'txid')
+                    vin_tx_voutn = int(vi_json.get(u'vout'))
+
+                    vin_tx_json = json.loads(call_rpc(["getrawtransaction", vin_txid, "1"]))
+
+                    for vo_json in vin_tx_json.get(u'vout'):
+                        spk_json = vo_json.get(u'scriptPubKey')
+                        #if (vin_txid == u"b73c15c622c515c1e0bdf8d1609e5f7a9e44ce3f1930759fe1716a0687ca1237"):
+                        #    print spk_json
+                        #    print set(spk_json.get(u'addresses'))
+                        
+                        vout_n = int(vo_json.get(u'n'))
+                        if vout_n == vin_tx_voutn:
+                            if set(spk_json.get(u'addresses')) == self.addresses:
                                 amount = Decimal(vo_json.get(u'value'))
-                                vout_n = int(vo_json.get(u'n'))
-                                unspent_minus.add((vin_tx, amount, vout_n))
+                                unspent_minus.add((vin_txid, amount, vout_n))
 
-                    for vo_json in t_json.get(u'vout'):
-                        #Add new outputs
-                        if vo_json.get(u'addresses') == self.address:
-                            amount = Decimal(vo_json.get(u'value'))
-                            vout_n = int(vo_json.get(u'n'))
-                            unspent_plus.add((txid, amount, vout_n))
+                for vo_json in t_json.get(u'vout'):
+                    spk_json = vo_json.get(u'scriptPubKey')
+                    #Add new outputs
+                    if set(spk_json.get(u'addresses')) == self.addresses:
+                        amount = Decimal(vo_json.get(u'value'))
+                        vout_n = int(vo_json.get(u'n'))
+                        unspent_plus.add((txid, amount, vout_n))
 
-            return unspent_minus, unspent_plus
+        return (unspent_minus, unspent_plus)
             
 
     def update_outputs(self):
         flag_change = 0
         bstream = BlockchainStream(self.last_block + 1, self.unspent_monitor)
-        while true:
-            delta = BlockchainStream.advance()
+        while 1:
+            delta = bstream.advance()
             if delta:
-                last_block += 1
+                self.last_block = bstream.height
                 if len(delta[0]) + len(delta[1]) > 0:
+                    #print bstream.next_block
+                    #print "delta = ", delta
                     #TODO: prompt difference
                     flag_change = 1
                     self.unspent.difference_update(delta[0])
                     self.unspent.update(delta[1])
 
-                    print self.unspent
+                    print "new unspent = ", self.unspent
             else:
                 break
 
@@ -147,7 +160,7 @@ class AddressInfo:
         return flag_change
 
     def get_spend_info(self, amount):
-        unspent_list = sorted(unspent, key=lambda x: x[1])
+        unspent_list = sorted(self.unspent, key=lambda x: x[1])
         sum = Decimal(0)
         amount = Decimal(amount)
         i = 0
@@ -236,9 +249,23 @@ def fetch_data(address_info):
 
     print ""
     return newest_unspent
-                    #TODO: return latest transaction?
 
-a = AddressInfo(test_address, CURRENCY_NBT)
-a.unspent = fetch_data(a)
+def write_address_info (address_info):
+    path = os.path.join(my_git, address_info.address)
+    if os.path.isdir(path):
+        with open(os.path.join(path, "unspent"), 'w') as f:
+            f.write(str(address_info.last_block) + "\n")
+            for t in address_info.unspent:
+                f.write(t[0] + "\n")
+                f.write(str(t[1]) + "\n")
+                f.write(str(t[2]) + "\n")
 
-print create_raw_transaction("11.1", a, "testqqqqq")
+a = AddressInfo(test_address, test_addresses, CURRENCY_NBT)
+print "Updating address snapshot..."
+a.update_outputs()
+print "Done."
+print a.unspent
+write_address_info(a)
+git_update(my_git)
+
+#print create_raw_transaction("11.1", a, "testqqqqq")
