@@ -17,6 +17,7 @@ import os
 import json
 import time
 from decimal import Decimal
+import chainutils as nbtutil
 
 CURRENCY_NBT = 0
 CURRENCY_NSR = 1
@@ -25,36 +26,10 @@ CURRENCY_BTC = 2
 test_address = "BT9AWq9r1i6kghZc6LtrvNb2wRFh7JLCdP"
 test_addresses = set(["BT9AWq9r1i6kghZc6LtrvNb2wRFh7JLCdP"])
 
-reference_gits =  {"dc-tcs" : "https://github.com/dc-tcs/flot-operations.git",
-        "test" : "https://github.com/dc-tcs/flot-operations-test.git"}
+reference_gits =  {"dc-tcs" : "https://github.com/dc-tcs/flot-operations.git"}
 
 my_id = "dc-tcs"
 my_git = os.path.join(".","flot-operations")
-
-def call_rpc(args):
-    nud_path = 'nud'
-    args = [str(arg) for arg in args]
-    call_args = [nud_path] + args
-
-    return subprocess.check_output(call_args)
-
-class BlockchainStream:
-    def __init__(self, start_height, monitor):
-        self.height = start_height
-        self.next_block = call_rpc(["getblockhash", start_height])
-        self.monitor = monitor
-
-    def advance(self):
-        if self.next_block:
-            s_json = json.loads(call_rpc(["getblock", self.next_block]))
-
-            self.next_block = s_json.get(u'nextblockhash')
-
-            if self.next_block:
-                self.height += 1
-            return self.monitor(s_json)
-        else:
-            return None
 
 class AddressInfo:
     def __init__(self, addr, addrs, unit, root = my_git):
@@ -96,83 +71,47 @@ class AddressInfo:
     def get_unspent(self):
         return self.unspent
 
-    def unspent_monitor(self, s_json):
-        flag_changes = 0
-        unspent_minus = set()
-        unspent_plus = set()
-
-        for txid in s_json[u'tx']:
-            t_out = call_rpc(["getrawtransaction", txid, "1"])
-
-            t_json = json.loads(t_out)
-
-            if t_json[u'unit'] == u'B':
-                for vi_json in t_json.get(u'vin'):
-                    #Remove used inputs
-                    vin_txid = vi_json.get(u'txid')
-                    vin_tx_voutn = int(vi_json.get(u'vout'))
-
-                    vin_tx_json = json.loads(call_rpc(["getrawtransaction", vin_txid, "1"]))
-
-                    for vo_json in vin_tx_json.get(u'vout'):
-                        spk_json = vo_json.get(u'scriptPubKey')
-                        #if (vin_txid == u"b73c15c622c515c1e0bdf8d1609e5f7a9e44ce3f1930759fe1716a0687ca1237"):
-                        #    print spk_json
-                        #    print set(spk_json.get(u'addresses'))
-                        
-                        vout_n = int(vo_json.get(u'n'))
-                        if vout_n == vin_tx_voutn:
-                            if set(spk_json.get(u'addresses')) == self.addresses:
-                                amount = Decimal(vo_json.get(u'value'))
-                                unspent_minus.add((vin_txid, amount, vout_n))
-
-                for vo_json in t_json.get(u'vout'):
-                    spk_json = vo_json.get(u'scriptPubKey')
-                    #Add new outputs
-                    if set(spk_json.get(u'addresses')) == self.addresses:
-                        amount = Decimal(vo_json.get(u'value'))
-                        vout_n = int(vo_json.get(u'n'))
-                        unspent_plus.add((txid, amount, vout_n))
-
-        return (unspent_minus, unspent_plus)
-            
-
     def update_outputs(self):
         flag_change = 0
-        bstream = BlockchainStream(self.last_block + 1, self.unspent_monitor)
+        bstream = nbtutil.BlockchainStream(self.last_block + 1,\
+                nbtutil.UnspentMonitor(self.address, self.addresses))
         while 1:
             delta = bstream.advance()
             if delta:
+                flag_change = 1
                 self.last_block = bstream.height
                 if len(delta[0]) + len(delta[1]) > 0:
                     #print bstream.next_block
                     #print "delta = ", delta
                     #TODO: prompt difference
-                    flag_change = 1
                     self.unspent.difference_update(delta[0])
                     self.unspent.update(delta[1])
 
                     print "new unspent = ", self.unspent
             else:
                 break
-
         #TODO: push to own repo?
         return flag_change
 
-    def get_spend_info(self, amount):
-        unspent_list = sorted(self.unspent, key=lambda x: x[1])
-        sum = Decimal(0)
-        amount = Decimal(amount)
-        i = 0
-        while sum < amount and i < len(unspent_list):
-            sum += unspent_list[i][1]
-            i += 1
-        if sum >= amount:
-            #returns (change, list of inputs to spend)
-            return (sum - amount, unspent_list[0:i])
-        else:
-            return None
+def getfee(amount, my_addr, recipient):
+    #TODO: call getfee rpc when 2.1 is ready
+    return Decimal(0.01)
 
+def get_spend_info(self, amount):
+    fee = getfee(amount, my_addr, recipient)
+
+    unspent_list = sorted(self.unspent, key=lambda x: x[1])
+    sum = Decimal(0)
+    amount = Decimal(amount)
+    i = 0
+    while sum < amount and i < len(unspent_list):
+        sum += unspent_list[i][1]
+        i += 1
+    if sum >= amount:
+        #returns (change, list of inputs to spend)
+        return (sum - amount - fee, unspent_list[0:i])
+    else:
+        return None
 
 def create_raw_transaction(amount, my_addr, recipient):
     #Note that amount should be a string
@@ -189,12 +128,12 @@ def create_raw_transaction(amount, my_addr, recipient):
 
         sr = "'{\"" + recipient +"\": " + str(amount) + ", \"" + my_addr.address + "\": " + str(spend_info[0]) + "}'"
 
-        return call_rpc(["create_raw_transaction",st,sr])
+        return nbtutil.call_rpc(["create_raw_transaction",st,sr])
     else:
         return None
 
 def sign_raw_transaction(raw_tx):
-    return call_rpc(["signrawtransaction", raw_tx])
+    return nbtutil.call_rpc(["signrawtransaction", raw_tx])
 
 def git_update(git_folder):
     subprocess.call(['git', '-C', git_folder, 'add', '-A'])
@@ -229,23 +168,23 @@ def fetch_data(address_info):
         if not os.path.exists(git_folder):
             subprocess.call(['git', 'clone', value, git_folder])
 
-        try:
-            s = subprocess.check_output(['git', '-C', git_folder, 'fetch', '--dry-run'])
-            if s != "":
-                subprocess.call(['git', '-C', git_folder, 'fetch'])
+        #try:
+        s = subprocess.check_output(['git', '-C', git_folder, 'fetch', '--dry-run'])
+        if s != "":
+            subprocess.call(['git', '-C', git_folder, 'fetch'])
 
-            a = AddressInfo(address_info.address, CURRENCY_NBT, root = git_folder)
+        a = AddressInfo(address_info.address, address_info.addresses, CURRENCY_NBT, root = git_folder)
 
-            if a.last_block > current_last_block:
-                yes = set(['yes','y', 'ye', ''])
-                no = set(['no','n'])
+        if a.last_block > current_last_block:
+            yes = set(['yes','y', 'ye', ''])
+            no = set(['no','n'])
 
-                choice = raw_input("Newer snapshot found for unspent from: " + key + " - accept (Y/n)? ").lower()
-                if choice in yes:
-                    newest_unspent = a.unspent
-                    current_last_block = a.last_block
-        except:
-            print "Error!"
+            choice = raw_input("Newer snapshot found for unspent from: " + key + " - accept (Y/n)? ").lower()
+            if choice in yes:
+                newest_unspent = a.unspent
+                current_last_block = a.last_block
+        #except:
+        #    print "Error!"
 
     print ""
     return newest_unspent
@@ -262,10 +201,12 @@ def write_address_info (address_info):
 
 a = AddressInfo(test_address, test_addresses, CURRENCY_NBT)
 print "Updating address snapshot..."
-a.update_outputs()
+if a.update_outputs():
+    write_address_info(a)
+    git_update(my_git)
+print "Checking other channels..."
+fetch_data(a)
+
 print "Done."
-print a.unspent
-write_address_info(a)
-git_update(my_git)
 
 #print create_raw_transaction("11.1", a, "testqqqqq")
