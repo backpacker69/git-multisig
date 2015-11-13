@@ -26,6 +26,10 @@ CURRENCY_BTC = 2
 test_address = "BT9AWq9r1i6kghZc6LtrvNb2wRFh7JLCdP"
 test_addresses = set(["BT9AWq9r1i6kghZc6LtrvNb2wRFh7JLCdP"])
 
+test_address2 = "BXKidrUiYNgRmDeDX61k6CASEJ2HjM8pUF"
+test_addresses2 = set(["B4bABJCsG4nBpk7Hiaw4yX3Fs4LfeS2f16",\
+                        "BHaPLPkrd6ZaJV9Kj3pykwDz76YVgNtkvN"])
+
 reference_gits =  {"dc-tcs" : "https://github.com/dc-tcs/flot-operations.git"}
 
 my_id = "dc-tcs"
@@ -155,7 +159,7 @@ def sign_and_push(raw_tx, my_addr, list_signed):
 
 root_ref = os.path.join(".","notmine")
 
-def fetch_data(address_info):
+def sync_multiple(address_info):
     newest_unspent = address_info.unspent
     newest_rawtx = ""
     newest_signed_ids = []
@@ -205,7 +209,7 @@ if a.update_outputs():
     write_address_info(a)
     git_update(my_git)
 print "Checking other channels..."
-fetch_data(a)
+sync_multiple(a)
 test_recipient = "B5Zi5XJ1sgS6mWGu7bWJqGVnuXwiMXi7qj"
 
 print nbtutil.create_raw_transaction("1000", a, test_recipient)
