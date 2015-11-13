@@ -4,7 +4,7 @@ import json
 from decimal import Decimal
 
 def NBTJSONtoAmount(value):
-    return Decimal(round(value * 100))/Decimal(100)
+    return Decimal(round(value * 10000))/Decimal(10000)
 
 def call_rpc(args):
     nud_path = 'nud'
@@ -16,16 +16,19 @@ def call_rpc(args):
 class BlockchainStream:
     def __init__(self, start_height, monitor):
         self.height = start_height
-        self.next_block = call_rpc(["getblockhash", start_height])
+        try:
+            self.current_block = call_rpc(["getblockhash", start_height])
+        except:
+            self.current_block = None
         self.monitor = monitor
 
     def advance(self):
-        if self.next_block:
-            s_json = json.loads(call_rpc(["getblock", self.next_block]))
+        if self.current_block:
+            s_json = json.loads(call_rpc(["getblock", self.current_block]))
 
-            self.next_block = s_json.get(u'nextblockhash')
+            self.current_block = s_json.get(u'nextblockhash')
 
-            if self.next_block:
+            if self.current_block:
                 self.height += 1
             return self.monitor(s_json)
         else:
@@ -79,3 +82,38 @@ class UnspentMonitor:
                         unspent_plus.add((txid, amount, vout_n))
 
         return (unspent_minus, unspent_plus)
+
+def getfee(amount, address_info, recipient):
+    #TODO: call getfee rpc when 2.1 is ready
+    return Decimal("0.01")
+
+def create_raw_transaction(amount, address_info, recipient):
+    #amount should be a string or Decimal
+    fee = getfee(amount, address_info, recipient)
+
+    unspent_list = sorted(address_info.unspent, key=lambda x: x[1])
+    sum = Decimal(0)
+    amount = Decimal(amount)
+    i = 0
+    while sum < amount and i < len(unspent_list):
+        sum += unspent_list[i][1]
+        i += 1
+
+    if sum < amount:
+        return None
+
+    unspent_list = unspent_list[0:i]
+
+    if unspent_list:
+        s = unspent_list[0] 
+        
+        st = "[{\"txid\":\"" + s[0] + "\",\"vout\": " + str(s[2]) + "}"
+        for s in unspent_list[1:]:
+            st = st + ",{\"txid\":\"" + s[0] + "\",\"vout\":" + str(s[2]) + "}"
+        st = st + "]"
+
+        sr = "{\"" + recipient +"\":" + str(amount) + ",\"" + address_info.address + "\":" + str(sum - fee - amount) + "}"
+
+        return call_rpc(["-unit=B","createrawtransaction",st,sr])
+    else:
+        return None

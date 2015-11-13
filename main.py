@@ -206,6 +206,9 @@ if a.update_outputs():
     git_update(my_git)
 print "Checking other channels..."
 fetch_data(a)
+test_recipient = "B5Zi5XJ1sgS6mWGu7bWJqGVnuXwiMXi7qj"
+
+print nbtutil.create_raw_transaction("1000", a, test_recipient)
 
 print "Done."
 
