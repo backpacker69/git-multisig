@@ -134,4 +134,7 @@ def create_raw_transaction(amount, address_info, recipient):
         return None
 
 def decode_raw_transaction(hexstring):
-    pass
+    try:
+        s_json = rpc_call(["unit=B", "decoderawtransaction", hexstring])
+    except:
+        return None

@@ -101,41 +101,6 @@ def getfee(amount, my_addr, recipient):
     #TODO: call getfee rpc when 2.1 is ready
     return Decimal(0.01)
 
-def get_spend_info(self, amount):
-    fee = getfee(amount, my_addr, recipient)
-
-    unspent_list = sorted(self.unspent, key=lambda x: x[1])
-    sum = Decimal(0)
-    amount = Decimal(amount)
-    i = 0
-    while sum < amount and i < len(unspent_list):
-        sum += unspent_list[i][1]
-        i += 1
-    if sum >= amount:
-        #returns (change, list of inputs to spend)
-        return (sum - amount - fee, unspent_list[0:i])
-    else:
-        return None
-
-def create_raw_transaction(amount, my_addr, recipient):
-    #Note that amount should be a string
-    spend_info = my_addr.get_spend_info(amount)
-
-    st = "'["
-    if spend_info:
-        s = spend_info[1][0]
-        
-        st = st + "{\"txid\": \"" + s[0] + "\", \"vout\": " + "1" + "}"
-        for s in spend_info[1][1:]:
-            st = st + ",{\"txid\": \"" + s[0] + "\", \"vout\": " + "1" + "}" #TODO:change "1" to sth else
-        st = st + "]'"
-
-        sr = "'{\"" + recipient +"\": " + str(amount) + ", \"" + my_addr.address + "\": " + str(spend_info[0]) + "}'"
-
-        return nbtutil.call_rpc(["create_raw_transaction",st,sr])
-    else:
-        return None
-
 def sign_raw_transaction(raw_tx):
     return nbtutil.call_rpc(["signrawtransaction", raw_tx])
 
@@ -215,5 +180,3 @@ test_recipient = "B5Zi5XJ1sgS6mWGu7bWJqGVnuXwiMXi7qj"
 print nbtutil.create_raw_transaction("1000", a, test_recipient)
 
 print "Done."
-
-#print create_raw_transaction("11.1", a, "testqqqqq")
