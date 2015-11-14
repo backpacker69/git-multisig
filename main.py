@@ -13,27 +13,85 @@
 #     limitations under the License.
 
 import subprocess
+import urllib2, urlparse
 import os
 import json
 import time
 from decimal import Decimal
 import chainutils as nbtutil
 
+####Configuration; TODO: use config file
+GIT_ENABLED = 0
+reference_gits =  {"dc-tcs" : "https://github.com/dc-tcs/flot-operations.git"}
+my_datadir = os.path.join(".","flot-operations")
+
+reference_urls = {"dc-tcs" : "https://raw.githubusercontent.com/dc-tcs/flot-operations/master/"} 
+
 CURRENCY_NBT = 0
 CURRENCY_NSR = 1
 CURRENCY_BTC = 2
 
 test_address = "BT9AWq9r1i6kghZc6LtrvNb2wRFh7JLCdP"
-test_addresses = set(["BT9AWq9r1i6kghZc6LtrvNb2wRFh7JLCdP"])
-
+test_addresses = set([])
 test_address2 = "BXKidrUiYNgRmDeDX61k6CASEJ2HjM8pUF"
 test_addresses2 = set(["B4bABJCsG4nBpk7Hiaw4yX3Fs4LfeS2f16",\
                         "BHaPLPkrd6ZaJV9Kj3pykwDz76YVgNtkvN"])
-
-reference_gits =  {"dc-tcs" : "https://github.com/dc-tcs/flot-operations.git"}
+test_recipient = "B5Zi5XJ1sgS6mWGu7bWJqGVnuXwiMXi7qj"
 
 my_id = "dc-tcs"
 my_git = os.path.join(".","flot-operations")
+####End Configuration
+
+def git_update(git_folder):
+    subprocess.call(['git', '-C', git_folder, 'add', '-A'])
+    subprocess.call(['git', '-C', git_folder, 'commit', '-m', str(time.time())])
+    subprocess.call(['git', '-C', git_folder, 'push', 'origin', 'master'])
+
+def init_from_reference(address):
+    path_dir = os.path.join(my_git,address)
+    if (os.path.exists(path_dir)):
+        print "Error: Path exists for address", address
+    else:
+        if GIT_ENABLED:
+            #TODO: find best way to do this
+            return
+        else:
+            os.makedirs(path_dir)
+            best_height = 0
+            best_page = "0\n"
+            best_id = ""
+
+            for key,u in reference_urls:
+                url_unspent = u + address + "/unspent" #TODO: make this more robust
+                response = urllib2.urlopen(url_unspent)
+                unspent_page = response.read()
+
+                height = int(unspent_page.split()[0])
+                if height >= best_height:
+                    best_height = int(unspent_page.split()[0])
+                    best_page = unspent_page
+                    best_id = key
+
+            if best_height > 0:
+                print "Newest block found at: ", best_id
+                with open(os.path.join(path_dir,"unspent"),"w") as f:
+                    f.write(best_page)
+            else:
+                #error message etc.
+                pass
+
+def init_empty(height, address, addesses = set([])):
+    #height should be the last block that the address has to balance
+    path_dir = os.path.join(my_git,address)
+    if (os.path.exists(path_dir)):
+        print "Error: Path exists for address", address
+    else:
+        os.makedirs(path_dir)
+        with open(os.path.join(path_dir,"unspent")) as f:
+            f.write(str(height))
+        if GIT_ENABLED:
+            subprocess.call(['git', -C, git_folder, 'init'])
+            git_update(git_folder)
 
 class AddressInfo:
     def __init__(self, addr, addrs, unit, root = my_git):
@@ -94,20 +152,7 @@ class AddressInfo:
                     print "new unspent = ", self.unspent
             else:
                 break
-        #TODO: push to own repo?
         return flag_change
-
-def getfee(amount, my_addr, recipient):
-    #TODO: call getfee rpc when 2.1 is ready
-    return Decimal(0.01)
-
-def sign_raw_transaction(raw_tx):
-    return nbtutil.call_rpc(["signrawtransaction", raw_tx])
-
-def git_update(git_folder):
-    subprocess.call(['git', '-C', git_folder, 'add', '-A'])
-    subprocess.call(['git', '-C', git_folder, 'commit', '-m', str(time.time())])
-    subprocess.call(['git', '-C', git_folder, 'push', 'origin', 'master'])
 
 def sign_and_push(raw_tx, my_addr, list_signed):
     s = sign_raw_transaction(raw_tx)
@@ -175,7 +220,6 @@ if a.update_outputs():
     git_update(my_git)
 print "Checking other channels..."
 sync_multiple(a)
-test_recipient = "B5Zi5XJ1sgS6mWGu7bWJqGVnuXwiMXi7qj"
 
 print nbtutil.create_raw_transaction("1000", a, test_recipient)
 
