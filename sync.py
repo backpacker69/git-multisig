@@ -8,6 +8,7 @@ import time
 GIT_ENABLED = 1
 DATA_DIR = os.path.join(".","flot-operations")
 REFERENCE_URLS = {"dc-tcs" : "https://raw.githubusercontent.com/dc-tcs/flot-operations/master"} 
+MY_GIT = "git@github.com:dc-tcs/flot-operations.git"
 
 #import config
 #TODO: load above from config file and sanitize
@@ -41,19 +42,20 @@ class AddressSnapshot:
         return 0
 
     def load_from_url(self, root = DATA_DIR):
+        #TODO: handle http errors
         addr_path = os.path.join(root, self.address)
         if not os.path.exists(addr_path):
             os.makedirs(addr_path)
         elif not os.path.isdir(addr_path):
             #TODO: give error
-            return None
+            return 0
 
         best_height = 0
         best_page = "0\n"
         best_id = ""
 
         for key,u in REFERENCE_URLS.iteritems():
-            url_unspent = u + self.address + "/unspent" #TODO: make this more robust
+            url_unspent = "/".join([u,self.address,"unspent"])
             response = urllib2.urlopen(url_unspent)
             unspent_page = response.read()
 
@@ -62,15 +64,15 @@ class AddressSnapshot:
                 best_height = int(unspent_page.split()[0])
                 best_page = unspent_page
                 best_id = key
-        print best_page
 
         if best_height > 0:
             print "Newest snapshot for", self.address, "found at:", best_id
-            with open(os.path.join(path_dir,"unspent"),"w") as f:
+            with open(os.path.join(addr_path,"unspent"),"w") as f:
                 f.write(best_page)
+            load_from_disk()
         else:
             #error message etc.
-            return None
+            return 0
 
     def __init__(self, address, addresses, root = DATA_DIR):
         self.address = address
@@ -87,7 +89,12 @@ class AddressSnapshot:
 
         if not self.load_from_disk():
             print "Snapshot of", self.address, "not found on disk."
-            self.load_from_url()
+            if GIT_ENABLED:
+                #TODO: find better way to do this
+                subprocess.call(['git','clone',MY_GIT,DATA_DIR])
+            else:
+                self.load_from_url()
+            self.load_from_disk()
 
     def sync_with_blockchain(self):
         flag_change = 0

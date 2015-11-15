@@ -13,10 +13,8 @@
 #     limitations under the License.
 
 import subprocess
-import urllib2
 import os
 import json
-import time
 from decimal import Decimal
 import chainutils as nbtutil
 import sync
@@ -55,40 +53,6 @@ def sign_and_push(raw_tx, my_addr, list_signed):
                 f.writeline(p)
             f.writeline(my_id)
         git_update(git_folder)
-
-def sync_multiple(address_info):
-    newest_unspent = address_info.unspent
-    newest_rawtx = ""
-    newest_signed_ids = []
-
-    current_last_block = address_info.last_block
-
-    for key, value in reference_gits.iteritems():
-        git_folder = os.path.join(root_ref,key)
-
-        if not os.path.exists(git_folder):
-            subprocess.call(['git', 'clone', value, git_folder])
-
-        #try:
-        s = subprocess.check_output(['git', '-C', git_folder, 'fetch', '--dry-run'])
-        if s != "":
-            subprocess.call(['git', '-C', git_folder, 'fetch'])
-
-        a = AddressInfo(address_info.address, address_info.addresses, CURRENCY_NBT, root = git_folder)
-
-        if a.last_block > current_last_block:
-            yes = set(['yes','y', 'ye', ''])
-            no = set(['no','n'])
-
-            choice = raw_input("Newer snapshot found for unspent from: " + key + " - accept (Y/n)? ").lower()
-            if choice in yes:
-                newest_unspent = a.unspent
-                current_last_block = a.last_block
-        #except:
-        #    print "Error!"
-
-    print ""
-    return newest_unspent
 
 a = sync.AddressSnapshot(test_address, test_addresses)
 print "Updating address snapshot..."
