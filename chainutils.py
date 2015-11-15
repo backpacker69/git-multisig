@@ -21,12 +21,27 @@ from decimal import Decimal
 def NBTJSONtoAmount(value):
     return Decimal(round(value * 10000))/Decimal(10000)
 
-def call_rpc(args):
-    nud_path = 'nud'
-    args = [str(arg) for arg in args]
-    call_args = [nud_path] + args
+class RPCCaller:
+    def __init__(self, param = 'nud', mode = 0):
+        if mode == 0:
+            self.nudpath = param
+        self.mode = mode
 
-    return subprocess.check_output(call_args)
+    def set_nudpath(self, param = 'nud'):
+        self.nudpath = param
+        self.mode = 0
+
+    def __call__(self, args):
+        if self.mode == 0:
+            args = [str(arg) for arg in args]
+            call_args = [self.nudpath] + args
+
+            return subprocess.check_output(call_args)
+        else:
+            #TODO: use rpc port etc.
+            return None
+
+call_rpc = RPCCaller()
 
 class BlockchainStream:
     def __init__(self, start_height, monitor):

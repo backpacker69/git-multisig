@@ -13,26 +13,26 @@
 #     limitations under the License.
 
 import subprocess
-import urllib2, urlparse
+import urllib2
 import os
 import json
 import time
 from decimal import Decimal
 import chainutils as nbtutil
+import sync
+import argparse
 
-####Configuration; TODO: use config file
-GIT_ENABLED = 0
-reference_gits =  {"dc-tcs" : "https://github.com/dc-tcs/flot-operations.git"}
-my_datadir = os.path.join(".","flot-operations")
+parser = argparse.ArgumentParser(description="A tool to use git repositories to do multisig")
+parser.add_argument("--init", action="store_true")
+parser.add_argument("--sync", action="store_true")
+parser.add_argument("--nogit", action="store_true")
+cli_args = parser.parse_args()
 
-reference_urls = {"dc-tcs" : "https://raw.githubusercontent.com/dc-tcs/flot-operations/master/"} 
-
-CURRENCY_NBT = 0
-CURRENCY_NSR = 1
-CURRENCY_BTC = 2
+####Configuration and constants; TODO: use config file
+nbtutil.call_rpc.set_nudpath('nud')
 
 test_address = "BT9AWq9r1i6kghZc6LtrvNb2wRFh7JLCdP"
-test_addresses = set([])
+test_addresses = set([]) #TODO: make this None
 test_address2 = "BXKidrUiYNgRmDeDX61k6CASEJ2HjM8pUF"
 test_addresses2 = set(["B4bABJCsG4nBpk7Hiaw4yX3Fs4LfeS2f16",\
                         "BHaPLPkrd6ZaJV9Kj3pykwDz76YVgNtkvN"])
@@ -42,119 +42,8 @@ my_id = "dc-tcs"
 my_git = os.path.join(".","flot-operations")
 ####End Configuration
 
-def git_update(git_folder):
-    subprocess.call(['git', '-C', git_folder, 'add', '-A'])
-    subprocess.call(['git', '-C', git_folder, 'commit', '-m', str(time.time())])
-    subprocess.call(['git', '-C', git_folder, 'push', 'origin', 'master'])
-
-def init_from_reference(address):
-    path_dir = os.path.join(my_git,address)
-    if (os.path.exists(path_dir)):
-        print "Error: Path exists for address", address
-    else:
-        if GIT_ENABLED:
-            #TODO: find best way to do this
-            return
-        else:
-            os.makedirs(path_dir)
-            best_height = 0
-            best_page = "0\n"
-            best_id = ""
-
-            for key,u in reference_urls:
-                url_unspent = u + address + "/unspent" #TODO: make this more robust
-                response = urllib2.urlopen(url_unspent)
-                unspent_page = response.read()
-
-                height = int(unspent_page.split()[0])
-                if height >= best_height:
-                    best_height = int(unspent_page.split()[0])
-                    best_page = unspent_page
-                    best_id = key
-
-            if best_height > 0:
-                print "Newest block found at: ", best_id
-                with open(os.path.join(path_dir,"unspent"),"w") as f:
-                    f.write(best_page)
-            else:
-                #error message etc.
-                pass
-
-def init_empty(height, address, addesses = set([])):
-    #height should be the last block that the address has to balance
-    path_dir = os.path.join(my_git,address)
-    if (os.path.exists(path_dir)):
-        print "Error: Path exists for address", address
-    else:
-        os.makedirs(path_dir)
-        with open(os.path.join(path_dir,"unspent")) as f:
-            f.write(str(height))
-        if GIT_ENABLED:
-            subprocess.call(['git', -C, git_folder, 'init'])
-            git_update(git_folder)
-
-class AddressInfo:
-    def __init__(self, addr, addrs, unit, root = my_git):
-        self.address = addr
-        self.addresses = addrs
-
-        self.unspent = set()
-        self.unit = unit
-        self.last_block = 0
-        self.signed_tx = ""
-        self.signed_ids = []
-
-        addr_path = os.path.join(root, addr)
-
-        if os.path.isdir(addr_path):
-            addr_unspent_path = os.path.join(addr_path,'unspent')
-            addr_tx_path = os.path.join(addr_path,'tx')
-
-            if os.path.isfile(addr_unspent_path):
-                with open(addr_unspent_path,"r") as f:
-                    l = 0
-                    cur_tx = ""
-                    amount = Decimal(0)
-                    for line in f:
-                        if l == 0:
-                            self.last_block = int(line)
-                        elif l % 3 == 1:
-                            cur_tx = line.strip()
-                        elif l % 3 == 2:
-                            amount = Decimal(line)
-                        else:
-                            self.unspent.add((cur_tx,amount,int(line.strip())))
-                        l += 1
-
-        else:
-            if not os.path.exists(addr_path):
-                os.makedirs(addr_path)
-                #TODO: initialize unspent and tx files
-    def get_unspent(self):
-        return self.unspent
-
-    def update_outputs(self):
-        flag_change = 0
-        bstream = nbtutil.BlockchainStream(self.last_block + 1,\
-                nbtutil.UnspentMonitor(self.address, self.addresses))
-        while 1:
-            delta = bstream.advance()
-            if delta:
-                flag_change = 1
-                self.last_block = bstream.height
-                if len(delta[0]) + len(delta[1]) > 0:
-                    #print bstream.next_block
-                    #print "delta = ", delta
-                    #TODO: prompt difference
-                    self.unspent.difference_update(delta[0])
-                    self.unspent.update(delta[1])
-
-                    print "new unspent = ", self.unspent
-            else:
-                break
-        return flag_change
-
 def sign_and_push(raw_tx, my_addr, list_signed):
+    #TODO
     s = sign_raw_transaction(raw_tx)
     if s:
         git_folder = os.path.join('.', my_git)
@@ -166,8 +55,6 @@ def sign_and_push(raw_tx, my_addr, list_signed):
                 f.writeline(p)
             f.writeline(my_id)
         git_update(git_folder)
-
-root_ref = os.path.join(".","notmine")
 
 def sync_multiple(address_info):
     newest_unspent = address_info.unspent
@@ -203,23 +90,12 @@ def sync_multiple(address_info):
     print ""
     return newest_unspent
 
-def write_address_info (address_info):
-    path = os.path.join(my_git, address_info.address)
-    if os.path.isdir(path):
-        with open(os.path.join(path, "unspent"), 'w') as f:
-            f.write(str(address_info.last_block) + "\n")
-            for t in address_info.unspent:
-                f.write(t[0] + "\n")
-                f.write(str(t[1]) + "\n")
-                f.write(str(t[2]) + "\n")
-
-a = AddressInfo(test_address, test_addresses, CURRENCY_NBT)
+a = sync.AddressSnapshot(test_address, test_addresses)
 print "Updating address snapshot..."
-if a.update_outputs():
-    write_address_info(a)
-    git_update(my_git)
-print "Checking other channels..."
-sync_multiple(a)
+if a.sync_with_blockchain():
+    sync.write_snapshot(a)
+#print "Checking other channels..."
+#sync_multiple(a)
 
 print nbtutil.create_raw_transaction("1000", a, test_recipient)
 
