@@ -34,6 +34,7 @@ test_addresses = set([]) #TODO: make this None
 test_address2 = "BXKidrUiYNgRmDeDX61k6CASEJ2HjM8pUF"
 test_addresses2 = set(["B4bABJCsG4nBpk7Hiaw4yX3Fs4LfeS2f16",\
                         "BHaPLPkrd6ZaJV9Kj3pykwDz76YVgNtkvN"])
+
 test_recipient = "B5Zi5XJ1sgS6mWGu7bWJqGVnuXwiMXi7qj"
 
 my_id = "dc-tcs"

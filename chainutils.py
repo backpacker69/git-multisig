@@ -84,22 +84,26 @@ class UnspentMonitor:
                     vin_txid = vi_json.get(u'txid')
                     vin_tx_voutn = int(vi_json.get(u'vout'))
 
-                    vin_tx_json = json.loads(call_rpc(["getrawtransaction", vin_txid, "1"]))
+                    if not vin_txid == '0000000000000000000000000000000000000000000000000000000000000000':
+                        vin_tx_json = json.loads(call_rpc(["getrawtransaction", vin_txid, "1"]))
 
-                    for vo_json in vin_tx_json.get(u'vout'):
-                        spk_json = vo_json.get(u'scriptPubKey')
-                        #if (vin_txid == u"b73c15c622c515c1e0bdf8d1609e5f7a9e44ce3f1930759fe1716a0687ca1237"):
-                        #    print spk_json
-                        #    print set(spk_json.get(u'addresses'))
-                        
-                        vout_n = int(vo_json.get(u'n'))
-                        if vout_n == vin_tx_voutn:
-                            vout_addresses = set(spk_json.get(u'addresses'))
-                            if vout_addresses == self.addresses \
-                                    or vout_addresses == set([self.address]):
-                                #TODO: check actual specification of "addresses"
-                                amount = NBTJSONtoAmount(vo_json.get(u'value'))
-                                unspent_minus.add((vin_txid, amount, vout_n))
+                        for vo_json in vin_tx_json.get(u'vout'):
+                            spk_json = vo_json.get(u'scriptPubKey')
+                            #if (vin_txid == u"b73c15c622c515c1e0bdf8d1609e5f7a9e44ce3f1930759fe1716a0687ca1237"):
+                            #    print spk_json
+                            #    print set(spk_json.get(u'addresses'))
+                            
+                            vout_n = int(vo_json.get(u'n'))
+                            if vout_n == vin_tx_voutn:
+                                try:
+                                    vout_addresses = set(spk_json.get(u'addresses'))
+                                except:
+                                    vout_addresses = set([spk_json.get(u'unparkaddress')])
+                                if vout_addresses == self.addresses \
+                                        or vout_addresses == set([self.address]):
+                                    #TODO: check actual specification of "addresses"
+                                    amount = NBTJSONtoAmount(vo_json.get(u'value'))
+                                    unspent_minus.add((vin_txid, amount, vout_n))
 
                 #Add new outputs:
                 for vo_json in t_json.get(u'vout'):

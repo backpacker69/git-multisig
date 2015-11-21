@@ -18,6 +18,7 @@ import chainutils as nbtutil
 from decimal import Decimal
 import os
 import time
+import json
 
 GIT_ENABLED = 1
 DATA_DIR = os.path.join(".","flot-operations")
@@ -32,10 +33,11 @@ class AddressSnapshot:
     #Snapshot of a multisig address
 
     def load_from_disk(self, root = DATA_DIR):
+        #TODO: use json?
         addr_path = os.path.join(root, self.address)
         if os.path.isdir(addr_path):
             unspent_path = os.path.join(addr_path,'unspent')
-            addr_tx_path = os.path.join(addr_path,'tx')
+            addr_tx_path = os.path.join(addr_path,'signers')
 
             if os.path.isfile(unspent_path):
                 with open(unspent_path,"r") as f:
@@ -130,6 +132,33 @@ class AddressSnapshot:
             else:
                 break
         return flag_change
+
+class TxSnapshot:
+    #Work in progress
+    def load_from_disk(self, root = DATA_DIR):
+        #keys: txjson, signed_ids, address, hex
+        tx_fp = os.path.join(DATA_DIR,'tx')
+        with open(tx_fp, 'r') as f:
+            ss_json = json.load(tx_fp)
+
+    def load_from_url(self,root = DATA_DIR):
+        pass
+
+    def __init__(self, signed_ids = set([])):
+        self.signed_ids = signed_ids
+
+    def sync_signed(self):
+        pass
+
+    def get_json(self):
+        pass
+
+    def compare(self, other_snapshot):
+        #Detect "same" transaction but with different signers
+        if self.txjson.get(u'vout') == other_snapshot.txjson.get(u'vout'):
+            if self.inputs == other_snapshot.inputs:
+                return 1
+        return 0
 
 def git_update(git_folder):
     subprocess.call(['git', '-C', git_folder, 'add', '-A'])
