@@ -17,6 +17,7 @@ import subprocess
 import os
 import json
 from decimal import Decimal
+import config
 
 def NBTJSONtoAmount(value):
     return Decimal(round(value * 10000))/Decimal(10000)
@@ -26,10 +27,6 @@ class RPCCaller:
         if mode == 0:
             self.nudpath = param
         self.mode = mode
-
-    def set_nudpath(self, param = 'nud'):
-        self.nudpath = param
-        self.mode = 0
 
     def __call__(self, args):
         if self.mode == 0:
@@ -41,7 +38,10 @@ class RPCCaller:
             #TODO: use rpc port etc.
             return None
 
-call_rpc = RPCCaller()
+if config.RPC_MODE == 0:
+    call_rpc = RPCCaller(param = config.NUD_PATH, mode = 0)
+elif config.RPC_MODE == 1:
+    call_rpc  = RPCCaller(param = config.RPC_PORT, mode = 1)
 
 class BlockchainStream:
     def __init__(self, start_height, monitor):

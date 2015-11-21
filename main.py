@@ -19,23 +19,18 @@ from decimal import Decimal
 import chainutils as nbtutil
 import sync
 import argparse
+import config
 
 parser = argparse.ArgumentParser(description="A tool to use git repositories to do multisig")
 parser.add_argument("--init", action="store_true")
 parser.add_argument("--sync", action="store_true")
 parser.add_argument("--nogit", action="store_true")
+parser.add_argument("--recipient", type=str, action="store")
+parser.add_argument("--amount", type=str, action="store")
 cli_args = parser.parse_args()
 
 ####Configuration and constants; TODO: use config file
-nbtutil.call_rpc.set_nudpath('nud')
-
-test_address = "BT9AWq9r1i6kghZc6LtrvNb2wRFh7JLCdP"
-test_addresses = set([]) #TODO: make this None
-test_address2 = "BXKidrUiYNgRmDeDX61k6CASEJ2HjM8pUF"
-test_addresses2 = set(["B4bABJCsG4nBpk7Hiaw4yX3Fs4LfeS2f16",\
-                        "BHaPLPkrd6ZaJV9Kj3pykwDz76YVgNtkvN"])
-
-test_recipient = "B5Zi5XJ1sgS6mWGu7bWJqGVnuXwiMXi7qj"
+#test_recipient = "B5Zi5XJ1sgS6mWGu7bWJqGVnuXwiMXi7qj"
 
 my_id = "dc-tcs"
 my_git = os.path.join(".","flot-operations")
@@ -55,13 +50,18 @@ def sign_and_push(raw_tx, my_addr, list_signed):
             f.writeline(my_id)
         git_update(git_folder)
 
-a = sync.AddressSnapshot(test_address, test_addresses)
+a = sync.AddressSnapshot(config.ADDRESS, config.ADDRESSES)
 print "Updating address snapshot..."
 if a.sync_with_blockchain():
     sync.write_snapshot(a)
 #print "Checking other channels..."
 #sync_multiple(a)
+print "Done.\n"
 
-print nbtutil.create_raw_transaction("1000", a, test_recipient)
+if cli_args.amount and cli_args.recipient:
+    print "This is your transaction hex:"
+    print nbtutil.create_raw_transaction(cli_args.amount, a, cli_args.recipient)
+else:
+    print "Please specify recipient and amount!"
 
 print "Done."

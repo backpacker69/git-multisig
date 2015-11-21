@@ -19,11 +19,7 @@ from decimal import Decimal
 import os
 import time
 import json
-
-GIT_ENABLED = 1
-DATA_DIR = os.path.join(".","flot-operations")
-REFERENCE_URLS = {"dc-tcs" : "https://raw.githubusercontent.com/dc-tcs/flot-operations/master"} 
-MY_GIT = "git@github.com:dc-tcs/flot-operations.git"
+import config
 
 #import config
 #TODO: load above from config file and sanitize
@@ -32,7 +28,7 @@ MY_GIT = "git@github.com:dc-tcs/flot-operations.git"
 class AddressSnapshot:
     #Snapshot of a multisig address
 
-    def load_from_disk(self, root = DATA_DIR):
+    def load_from_disk(self, root = config.DATA_DIR):
         #TODO: use json?
         addr_path = os.path.join(root, self.address)
         if os.path.isdir(addr_path):
@@ -57,7 +53,7 @@ class AddressSnapshot:
                 return 1
         return 0
 
-    def load_from_url(self, root = DATA_DIR):
+    def load_from_url(self, root = config.DATA_DIR):
         #TODO: handle http errors
         addr_path = os.path.join(root, self.address)
         if not os.path.exists(addr_path):
@@ -70,7 +66,7 @@ class AddressSnapshot:
         best_page = "0\n"
         best_id = ""
 
-        for key,u in REFERENCE_URLS.iteritems():
+        for key,u in config.REFERENCE_URLS.iteritems():
             url_unspent = "/".join([u,self.address,"unspent"])
             response = urllib2.urlopen(url_unspent)
             unspent_page = response.read()
@@ -90,7 +86,7 @@ class AddressSnapshot:
             #error message etc.
             return 0
 
-    def __init__(self, address, addresses, root = DATA_DIR):
+    def __init__(self, address, addresses, root = config.DATA_DIR):
         self.address = address
         #The actual multisig address
         
@@ -105,9 +101,9 @@ class AddressSnapshot:
 
         if not self.load_from_disk():
             print "Snapshot of", self.address, "not found on disk."
-            if GIT_ENABLED:
+            if config.GIT_ENABLED:
                 #TODO: find better way to do this
-                subprocess.call(['git','clone',MY_GIT,DATA_DIR])
+                subprocess.call(['git','clone',config.MY_GIT,config.DATA_DIR])
             else:
                 self.load_from_url()
             self.load_from_disk()
@@ -135,13 +131,13 @@ class AddressSnapshot:
 
 class TxSnapshot:
     #Work in progress
-    def load_from_disk(self, root = DATA_DIR):
+    def load_from_disk(self, root = config.DATA_DIR):
         #keys: txjson, signed_ids, address, hex
-        tx_fp = os.path.join(DATA_DIR,'tx')
+        tx_fp = os.path.join(config.DATA_DIR,'tx')
         with open(tx_fp, 'r') as f:
             ss_json = json.load(tx_fp)
 
-    def load_from_url(self,root = DATA_DIR):
+    def load_from_url(self,root = config.DATA_DIR):
         pass
 
     def __init__(self, signed_ids = set([])):
@@ -166,7 +162,7 @@ def git_update(git_folder):
     subprocess.call(['git', '-C', git_folder, 'push', 'origin', 'master'])
 
 def write_snapshot(address_snapshot):
-    path = os.path.join(DATA_DIR, address_snapshot.address)
+    path = os.path.join(config.DATA_DIR, address_snapshot.address)
     if os.path.isdir(path):
         with open(os.path.join(path, "unspent"), 'w') as f:
             f.write(str(address_snapshot.last_block) + "\n")
@@ -174,5 +170,5 @@ def write_snapshot(address_snapshot):
                 f.write(t[0] + "\n")
                 f.write(str(t[1]) + "\n")
                 f.write(str(t[2]) + "\n")
-    if GIT_ENABLED:
-        git_update(DATA_DIR)
+    if config.GIT_ENABLED:
+        git_update(config.DATA_DIR)
