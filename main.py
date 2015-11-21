@@ -52,8 +52,12 @@ def sign_and_push(raw_tx, my_addr, list_signed):
 
 a = sync.AddressSnapshot(config.ADDRESS, config.ADDRESSES)
 print "Updating address snapshot..."
-if a.sync_with_blockchain():
-    sync.write_snapshot(a)
+try:
+    if a.sync_with_blockchain():
+        sync.write_snapshot(a)
+except:
+    if a.load_from_url():
+        sync.write_snapshot(a)
 #print "Checking other channels..."
 #sync_multiple(a)
 print "Done.\n"
@@ -64,4 +68,3 @@ if cli_args.amount and cli_args.recipient:
 else:
     print "Please specify recipient and amount!"
 
-print "Done."

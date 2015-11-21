@@ -81,7 +81,7 @@ class AddressSnapshot:
             print "Newest snapshot for", self.address, "found at:", best_id
             with open(os.path.join(addr_path,"unspent"),"w") as f:
                 f.write(best_page)
-            load_from_disk()
+            self.load_from_disk()
         else:
             #error message etc.
             return 0
