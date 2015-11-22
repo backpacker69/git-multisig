@@ -81,7 +81,7 @@ class AddressSnapshot:
                 best_id = key
 
         if best_height > 0:
-            print "Newest snapshot for", self.address, "found at:", best_id
+            print "Newest remote snapshot for", self.address, "found at:", best_id
             with open(os.path.join(addr_path,"unspent"),"w") as f:
                 f.write(best_page)
             self.load_from_disk()
@@ -104,12 +104,8 @@ class AddressSnapshot:
 
         if not self.load_from_disk():
             print "Snapshot of", self.address, "not found on disk."
-            if config.GIT_ENABLED:
-                #TODO: find better way to do this
-                subprocess.call(['git','clone',config.MY_GIT,config.DATA_DIR])
-            else:
-                self.load_from_url()
-            self.load_from_disk()
+            print "Trying to fetch online..."
+            self.load_from_url()
 
     def sync_with_blockchain(self):
         flag_change = 0
