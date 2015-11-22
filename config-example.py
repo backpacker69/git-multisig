@@ -1,6 +1,6 @@
 import os
 
-GIT_ENABLED = 1
+GIT_ENABLED = 0
 DATA_DIR = os.path.join(".","flot-operations")
 MY_GIT = u"git@github.com:dc-tcs/flot-operations"
 
