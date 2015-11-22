@@ -52,12 +52,16 @@ def sign_and_push(raw_tx, my_addr, list_signed):
 
 a = sync.AddressSnapshot(config.ADDRESS, config.ADDRESSES)
 print "Updating address snapshot..."
-try:
-    if a.sync_with_blockchain():
-        sync.write_snapshot(a)
-except:
-    if a.load_from_url():
-        sync.write_snapshot(a)
+if a.sync_with_blockchain():
+    sync.write_snapshot(a)
+else:
+    print "Blockchain sync failed. Going online..."
+    b = a
+    b.load_from_url()
+    if b.last_block > a.last_block:
+        a = b
+    #if a.load_from_url():
+    #    sync.write_snapshot(a)
 #print "Checking other channels..."
 #sync_multiple(a)
 print "Done.\n"

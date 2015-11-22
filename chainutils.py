@@ -18,11 +18,16 @@ import os
 import json
 from decimal import Decimal
 import config
+import jsonrpc
+
+rpc_server = jsonrpc.ServiceProxy("http://" + config.RPC_USERNAME + ":" +\
+        config.RPC_PASSWORD + "@127.0.0.1:" + str(config.RPC_PORT))
 
 def NBTJSONtoAmount(value):
     return Decimal(round(value * 10000))/Decimal(10000)
 
 class RPCCaller:
+    #Deprecated?
     def __init__(self, param = 'nud', mode = 0):
         if mode == 0:
             self.nudpath = param
@@ -47,14 +52,15 @@ class BlockchainStream:
     def __init__(self, start_height, monitor):
         self.height = start_height
         try:
-            self.current_block = call_rpc(["getblockhash", start_height])
+            self.current_block = rpc_server.getblockhash(int(start_height))
         except:
             self.current_block = None
         self.monitor = monitor
 
     def advance(self):
         if self.current_block:
-            s_json = json.loads(call_rpc(["getblock", self.current_block]))
+            rpc_server.getblock(self.current_block)
+            s_json = rpc_server.getblock(self.current_block)
 
             self.current_block = s_json.get(u'nextblockhash')
 
@@ -74,9 +80,7 @@ class UnspentMonitor:
         unspent_plus = set()
 
         for txid in s_json[u'tx']:
-            t_out = call_rpc(["getrawtransaction", txid, "1"])
-
-            t_json = json.loads(t_out)
+            t_json = rpc_server.getrawtransaction(txid, 1)
 
             if t_json[u'unit'] == u'B':
                 #Remove used inputs:
@@ -85,7 +89,7 @@ class UnspentMonitor:
                     vin_tx_voutn = int(vi_json.get(u'vout'))
 
                     if not vin_txid == '0000000000000000000000000000000000000000000000000000000000000000':
-                        vin_tx_json = json.loads(call_rpc(["getrawtransaction", vin_txid, "1"]))
+                        vin_tx_json = rpc_server.getrawtransaction(vin_txid, 1)
 
                         for vo_json in vin_tx_json.get(u'vout'):
                             spk_json = vo_json.get(u'scriptPubKey')
@@ -148,12 +152,12 @@ def create_raw_transaction(amount, address_info, recipient):
 
         sr = "{\"" + recipient +"\":" + str(amount) + ",\"" + address_info.address + "\":" + str(sum - fee - amount) + "}"
 
-        return call_rpc(["-unit=B","createrawtransaction",st,sr])
+        return rpc_server.createrawtransaction(json.loads(st),json.loads(sr))
     else:
         return None
 
 def decode_raw_transaction(hexstring):
     try:
-        s_json = rpc_call(["unit=B", "decoderawtransaction", hexstring])
+        s_json = rpc_server.decoderawtransaction(hexstring)
     except:
         return None
