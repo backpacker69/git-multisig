@@ -43,11 +43,6 @@ class RPCCaller:
             #TODO: use rpc port etc.
             return None
 
-if config.RPC_MODE == 0:
-    call_rpc = RPCCaller(param = config.NUD_PATH, mode = 0)
-elif config.RPC_MODE == 1:
-    call_rpc  = RPCCaller(param = config.RPC_PORT, mode = 1)
-
 class BlockchainStream:
     def __init__(self, start_height, monitor):
         self.height = start_height
