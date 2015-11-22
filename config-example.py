@@ -7,8 +7,7 @@ MY_GIT = u"git@github.com:dc-tcs/flot-operations"
 #ADDRESS: Multisig address
 #ADDRESSESS: Constituents of the Multisig address
 #These scripts can only track 1 addresses for now
-ADDRESS = u"BT9AWq9r1i6kghZc6LtrvNb2wRFh7JLCdP"
-#ADDRESS = u"beeFAEa7AqQbmhC5qzxyeNLhvoR9MTKAdJ"
+ADDRESS = u"BqyRzFtWXDmjxrYpyJD42MLE5xc8FrB4js"
 ADDRESSES = set([])
 
 #URLs of folders from which to download address snapshots (spendable outputs etc)
@@ -21,5 +20,5 @@ RPC_PORT = 14002
 #defaults: 14002 for NBT (mainnet)
 #          15002 for NBT (testnet)
 
-RPC_USERNAME = ""
+RPC_USERNAME = "nurpc"
 RPC_PASSWORD = ""
