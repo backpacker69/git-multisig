@@ -60,6 +60,8 @@ else:
     b.load_from_url()
     if b.last_block > a.last_block:
         a = b
+    else:
+        print "Remote snapshots not newer. Not updating."
     #if a.load_from_url():
     #    sync.write_snapshot(a)
 #print "Checking other channels..."

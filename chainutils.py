@@ -46,6 +46,7 @@ class RPCCaller:
 class BlockchainStream:
     def __init__(self, start_height, monitor):
         self.height = start_height
+
         try:
             self.current_block = rpc_server.getblockhash(int(start_height))
         except:

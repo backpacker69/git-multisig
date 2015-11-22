@@ -57,7 +57,10 @@ class AddressSnapshot:
         #TODO: handle http errors
         addr_path = os.path.join(root, self.address)
         if not os.path.exists(addr_path):
-            os.makedirs(addr_path)
+            if not os.path.exists(root):
+                os.makedirs(addr_path)
+            else:
+                os.makedir(addr_path)
         elif not os.path.isdir(addr_path):
             #TODO: give error
             return 0
