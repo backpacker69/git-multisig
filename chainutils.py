@@ -152,7 +152,11 @@ def create_raw_transaction(amount, address_info, recipient):
 
         sr = "{\"" + recipient +"\":" + str(amount) + ",\"" + address_info.address + "\":" + str(sum - fee - amount) + "}"
 
-        return rpc_server.createrawtransaction(json.loads(st),json.loads(sr))
+        try:
+            return rpc_server.createrawtransaction(json.loads(st),json.loads(sr))
+        except:
+            #print "nud -unit=B createrawtransaction " + st + " " + sr
+            return None
     else:
         return None
 

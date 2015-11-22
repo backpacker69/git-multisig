@@ -15,7 +15,6 @@ ADDRESSES = set([])
 #REFERENCE_URLS = {"foo" : "https://bar", "foo2" : "https://bar2", "foo3" : "https://bar3"}
 REFERENCE_URLS = {"dc-tcs" : "https://raw.githubusercontent.com/dc-tcs/flot-operations/master"}
 
-#DEFAULT_PORT = port number of rpc
 RPC_PORT = 14002
 TEST_RPC_PORT = 15002
 #defaults: 14002 for NBT (mainnet)
