@@ -154,9 +154,13 @@ class TxSnapshot:
         return 0
 
 def git_update(git_folder):
-    subprocess.call(['git', '-C', git_folder, 'add', '-A'])
-    subprocess.call(['git', '-C', git_folder, 'commit', '-m', str(time.time())])
-    subprocess.call(['git', '-C', git_folder, 'push', 'origin', 'master'])
+    thisdir = os.getcwd()
+
+    os.chdir(config.DATA_DIR)
+    subprocess.call(['git', 'add', '-A'])
+    subprocess.call(['git', 'commit', '-m', str(time.time())])
+    subprocess.call(['git', 'push', 'origin', 'master'])
+    os.chdir(thisdir)
 
 def write_snapshot(address_snapshot):
     path = os.path.join(config.DATA_DIR, address_snapshot.address)

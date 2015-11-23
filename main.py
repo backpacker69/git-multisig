@@ -48,7 +48,10 @@ if config.GIT_ENABLED:
     #TODO: handle this better
     if os.path.exists(os.path.join(config.DATA_DIR)):
         print "Trying git pull..."
-        subprocess.call(['git','-C',config.DATA_DIR,'pull'])
+        thisdir = os.getcwd()
+        os.chdir(config.DATA_DIR)
+        subprocess.call(['git','pull'])
+        os.chdir(thisdir)
     else:
         print "Repository not found locally. Cloning..."
         subprocess.call(['git','clone',config.MY_GIT, config.DATA_DIR])
