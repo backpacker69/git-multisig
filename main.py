@@ -29,13 +29,6 @@ parser.add_argument("--recipient", type=str, action="store")
 parser.add_argument("--amount", type=str, action="store")
 cli_args = parser.parse_args()
 
-####Configuration and constants; TODO: use config file
-#test_recipient = "B5Zi5XJ1sgS6mWGu7bWJqGVnuXwiMXi7qj"
-
-my_id = "dc-tcs"
-my_git = os.path.join(".","flot-operations")
-####End Configuration
-
 def sign_and_push(raw_tx, my_addr, list_signed):
     #TODO
     s = sign_raw_transaction(raw_tx)
