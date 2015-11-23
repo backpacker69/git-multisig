@@ -1,5 +1,5 @@
 import os
-from pub-config import *
+from pubconfig import *
 
 GIT_ENABLED = 1
 DATA_DIR = os.path.join(".","flot-operations")

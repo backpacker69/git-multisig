@@ -23,6 +23,16 @@ import jsonrpc
 rpc_server = jsonrpc.ServiceProxy("http://" + config.RPC_USERNAME + ":" +\
         config.RPC_PASSWORD + "@127.0.0.1:" + str(config.RPC_PORT))
 
+try:
+    s = rpc_server.addmultisigaddress(config.SIGN_THRESHOLD, config.PUBKEYS)
+    if s == config.ADDRESS:
+        print "Multisig address seems valid."
+    else:
+        print "Address does not match given public keys (note that order matters)"
+except:
+    print "Error verifying multisig address!"
+#rpc_server.addmultisigaddress(config.SIGN_THRESHOLD, json.dumps(list(config.PUBKEYS)))
+
 def NBTJSONtoAmount(value):
     return Decimal(round(value * 10000))/Decimal(10000)
 
