@@ -25,7 +25,7 @@ rpc_server = jsonrpc.ServiceProxy("http://" + config.RPC_USERNAME + ":" +\
         config.RPC_PASSWORD + "@127.0.0.1:" + str(config.RPC_PORT))
 
 try:
-    s = rpc_server.addmultisigaddress(config.SIGN_THRESHOLD, config.PUBKEYS)
+    s = rpc_server.addmultisigaddress(config.SIGN_THRESHOLD, config.PUBKEYS, config.ACCOUNT)
     if s == config.ADDRESS:
         print "Multisig address seems valid."
     else:

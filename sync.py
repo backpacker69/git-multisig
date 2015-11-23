@@ -106,23 +106,24 @@ class AddressSnapshot:
 
     def sync_with_blockchain(self):
         flag_change = 0
-        bstream = nbtutil.BlockchainStream(self.last_block + 1,\
-                nbtutil.UnspentMonitor(self.address, self.addresses))
-        while 1:
-            delta = bstream.advance()
-            if delta:
-                flag_change = 1
-                self.last_block = bstream.height
-                if len(delta[0]) + len(delta[1]) > 0:
-                    #print bstream.next_block
-                    #print "delta = ", delta
-                    #TODO: prompt difference
-                    self.unspent.difference_update(delta[0])
-                    self.unspent.update(delta[1])
+        if (config.TXINDEX):
+            bstream = nbtutil.BlockchainStream(self.last_block + 1,\
+                    nbtutil.UnspentMonitor(self.address, self.addresses))
+            while 1:
+                delta = bstream.advance()
+                if delta:
+                    flag_change = 1
+                    self.last_block = bstream.height
+                    if len(delta[0]) + len(delta[1]) > 0:
+                        #print bstream.next_block
+                        #print "delta = ", delta
+                        #TODO: prompt difference
+                        self.unspent.difference_update(delta[0])
+                        self.unspent.update(delta[1])
 
-                    print "new unspent = ", self.unspent
-            else:
-                break
+                        print "new unspent = ", self.unspent
+                else:
+                    break
         return flag_change
 
 class TxSnapshot:
