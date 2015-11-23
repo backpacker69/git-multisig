@@ -44,6 +44,9 @@ def sign_and_push(raw_tx, my_addr, list_signed):
             f.writeline(my_id)
         git_update(git_folder)
 
+if config.GIT_ENABLED and not os.path.exists(config.DATA_DIR):
+    subprocess.call(['git','clone',config.MY_GIT, config.DATA_DIR)
+
 a = sync.AddressSnapshot(config.ADDRESS, config.ADDRESSES)
 print "Updating address snapshot..."
 if a.sync_with_blockchain():
