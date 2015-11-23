@@ -27,6 +27,7 @@ parser.add_argument("--sync", action="store_true")
 parser.add_argument("--nogit", action="store_true")
 parser.add_argument("--recipient", type=str, action="store")
 parser.add_argument("--amount", type=str, action="store")
+parser.add_argument("--burn", type=str, action="store")
 cli_args = parser.parse_args()
 
 def sign_and_push(raw_tx, my_addr, list_signed):

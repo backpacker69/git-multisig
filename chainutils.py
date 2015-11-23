@@ -17,6 +17,7 @@ import subprocess
 import os
 import json
 from decimal import Decimal
+import math
 import config
 import jsonrpc
 
@@ -127,24 +128,40 @@ class UnspentMonitor:
 
         return (unspent_minus, unspent_plus)
 
-def getfee(amount, address_info, recipient):
+def getkbfee():
     #TODO: call getfee rpc when 2.1 is ready
     return Decimal("0.01")
 
+def getnkb(n_vins):
+    #overestimate number of bytes of transaction
+    n_bytes = 126 + 44 * (n_vins-1) + 80 * config.SIGN_THRESHOLD + len(config.PUBKEYS) * 34
+    return int(math.ceil(n_bytes/1024)/2)
+
 def create_raw_transaction(amount, address_info, recipient):
     #amount should be a string or Decimal
-    fee = getfee(amount, address_info, recipient)
-
-    unspent_list = sorted(address_info.unspent, key=lambda x: x[1])
-    sum = Decimal(0)
+    kbfee = getkbfee() #fee per byte
+    
+    kbsize = 1
+    fee = getkbfee()
     amount = Decimal(amount)
-    i = 0
-    while sum < amount and i < len(unspent_list):
-        sum += unspent_list[i][1]
-        i += 1
 
-    if sum < amount:
-        return None
+    while 1:
+        unspent_list = sorted(address_info.unspent, key=lambda x: x[1])
+        my_sum = Decimal(0)
+        i = 0
+        while my_sum < amount + fee and i < len(unspent_list):
+            my_sum += unspent_list[i][1]
+            i += 1
+
+        if my_sum < amount + fee:
+            print "Error: Send amount exceeds balance."
+            return None
+        elif kbsize < getnkb(i):
+            kbsize = getnkb(i)
+            fee = kbsize * getnkb(i)
+        else:
+            fee = kbsize * getnkb(i)
+            break
 
     unspent_list = unspent_list[0:i]
 
@@ -156,9 +173,10 @@ def create_raw_transaction(amount, address_info, recipient):
             st = st + ",{\"txid\":\"" + s[0] + "\",\"vout\":" + str(s[2]) + "}"
         st = st + "]"
 
-        sr = "{\"" + recipient +"\":" + str(amount) + ",\"" + address_info.address + "\":" + str(sum - fee - amount) + "}"
+        sr = "{\"" + recipient +"\":" + str(amount) + ",\"" + address_info.address + "\":" + str(my_sum - fee - amount) + "}"
 
         try:
+            tx_hex = rpc_server.createrawtransaction(json.loads(st),json.loads(sr))
             return rpc_server.createrawtransaction(json.loads(st),json.loads(sr))
         except:
             #print "nud -unit=B createrawtransaction " + st + " " + sr
