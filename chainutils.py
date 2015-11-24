@@ -56,6 +56,11 @@ class RPCCaller:
             #TODO: use rpc port etc.
             return None
 
+class Block:
+    #TODO
+    def __init__(self, blockhash):
+        self.json = rpc_server.getblock(self.current_block)
+
 class BlockchainStream:
     def __init__(self, start_height, monitor):
         self.height = start_height
@@ -68,8 +73,7 @@ class BlockchainStream:
 
     def advance(self):
         if self.current_block:
-            rpc_server.getblock(self.current_block)
-            s_json = rpc_server.getblock(self.current_block)
+            s_json = rpc_server.getblock(self.current_block,True,True)
 
             self.current_block = s_json.get(u'nextblockhash')
 
@@ -84,61 +88,48 @@ class RPCError(Exception):
         pass
 
 class UnspentMonitor:
-    def __init__(self, address, addresses):
+    def __init__(self, address, addresses, unspent):
         self.address = address
         self.addresses = addresses
+        self.unspent = unspent
     def __call__(self, s_json):
         flag_changes = 0
         unspent_minus = set()
         unspent_plus = set()
 
-        for txid in s_json[u'tx']:
-            try:
-                t_json = rpc_server.getrawtransaction(txid, 1)
-            except:
-                raise RPCError()
+        for tx_json in s_json.get(u'tx'):
 
-            if t_json[u'unit'] == u'B':
-                #Remove used inputs:
-                for vi_json in t_json.get(u'vin'):
-                    vin_txid = vi_json.get(u'txid')
-                    vin_tx_voutn = int(vi_json.get(u'vout'))
+            #Add new outputs:
+            unit = None
+            for vo_json in tx_json.get(u'vout'):
+                spk_json = vo_json.get(u'scriptPubKey')
 
-                    if not vin_txid == '0000000000000000000000000000000000000000000000000000000000000000':
-                        try:
-                            vin_tx_json = rpc_server.getrawtransaction(vin_txid, 1)
-                        except:
-                            raise RPCError()
-
-                        for vo_json in vin_tx_json.get(u'vout'):
-                            spk_json = vo_json.get(u'scriptPubKey')
-                            #if (vin_txid == u"b73c15c622c515c1e0bdf8d1609e5f7a9e44ce3f1930759fe1716a0687ca1237"):
-                            #    print spk_json
-                            #    print set(spk_json.get(u'addresses'))
-                            
-                            vout_n = int(vo_json.get(u'n'))
-                            if vout_n == vin_tx_voutn:
-                                try:
-                                    vout_addresses = set(spk_json.get(u'addresses'))
-                                except:
-                                    vout_addresses = set([spk_json.get(u'unparkaddress')])
-                                if vout_addresses == self.addresses \
-                                        or vout_addresses == set([self.address]):
-                                    #TODO: check actual specification of "addresses"
-                                    amount = NBTJSONtoAmount(vo_json.get(u'value'))
-                                    unspent_minus.add((vin_txid, amount, vout_n))
-
-                #Add new outputs:
-                for vo_json in t_json.get(u'vout'):
-                    spk_json = vo_json.get(u'scriptPubKey')
-                    vout_addresses = set(spk_json.get(u'addresses'))
+                if spk_json.get('addresses'):
+                    vout_addresses = set(spk_json.get('addresses'))
                     if vout_addresses == self.addresses \
                             or vout_addresses == set([self.address]):
                         amount = NBTJSONtoAmount(vo_json.get(u'value'))
                         vout_n = int(vo_json.get(u'n'))
+                        txid = tx_json.get('txid')
                         unspent_plus.add((txid, amount, vout_n))
+                    if next(iter(vout_addresses)).startswith("B"):
+                        unit = 'B'
 
-        return (unspent_minus, unspent_plus)
+            if unit == 'B':
+                #Remove used inputs:
+                for vin_json in tx_json.get(u'vin'):
+                    vin_txid = vin_json.get(u'txid')
+
+                    vin_tx_voutn = vin_json.get(u'vout')
+
+                    if vin_tx_voutn:
+                        vin_tx_voutn = int(vin_tx_voutn)
+                        for tup in self.unspent:
+                            if tup[0] == vin_txid and tup[2] == vin_tx_voutn:
+                                unspent_minus.add(tup)
+                                break
+
+        return unspent_minus, unspent_plus
 
 def getkbfee():
     #TODO: call getfee rpc when 2.1 is ready
