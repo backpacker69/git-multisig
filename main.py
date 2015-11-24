@@ -46,15 +46,19 @@ def sign_and_push(raw_tx, my_addr, list_signed):
 
 if config.GIT_ENABLED:
     #TODO: handle this better
-    if os.path.exists(os.path.join(config.DATA_DIR)):
+    if os.path.exists(os.path.join(config.DATA_DIR,'.git')):
         print "Trying git pull..."
         thisdir = os.getcwd()
         os.chdir(config.DATA_DIR)
         subprocess.call(['git','pull'])
         os.chdir(thisdir)
     else:
+        if os.path.exists(config.DATA_DIR):
+            #TODO
+            pass
         print "Repository not found locally. Cloning..."
         subprocess.call(['git','clone',config.MY_GIT, config.DATA_DIR])
+print ""
 
 a = sync.AddressSnapshot(config.ADDRESS, config.ADDRESSES)
 print "Updating address snapshot..."

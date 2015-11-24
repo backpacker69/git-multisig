@@ -1,7 +1,7 @@
 import os
 from pubconfig import *
 
-#Enable if you wish to push address snapshots to MY_GIT
+#Enable if you wish to push/pull/clone address snapshots with MY_GIT
 GIT_ENABLED = 0
 
 #Where to keep the unspent outputs list
