@@ -26,12 +26,14 @@ rpc_server = jsonrpc.ServiceProxy("http://" + config.RPC_USERNAME + ":" +\
 
 try:
     s = rpc_server.addmultisigaddress(config.SIGN_THRESHOLD, config.PUBKEYS, config.ACCOUNT)
+    print "Added multisig address to client, label =", config.ACCOUNT
     if s == config.ADDRESS:
         print "Multisig address seems valid."
     else:
         print "Address does not match given public keys (note that order matters)"
 except:
     print "Error verifying multisig address!"
+
 #rpc_server.addmultisigaddress(config.SIGN_THRESHOLD, json.dumps(list(config.PUBKEYS)))
 
 def NBTJSONtoAmount(value):
@@ -77,6 +79,10 @@ class BlockchainStream:
         else:
             return None
 
+class RPCError(Exception):
+    def __init__(self):
+        pass
+
 class UnspentMonitor:
     def __init__(self, address, addresses):
         self.address = address
@@ -87,7 +93,10 @@ class UnspentMonitor:
         unspent_plus = set()
 
         for txid in s_json[u'tx']:
-            t_json = rpc_server.getrawtransaction(txid, 1)
+            try:
+                t_json = rpc_server.getrawtransaction(txid, 1)
+            except:
+                raise RPCError()
 
             if t_json[u'unit'] == u'B':
                 #Remove used inputs:
@@ -96,7 +105,10 @@ class UnspentMonitor:
                     vin_tx_voutn = int(vi_json.get(u'vout'))
 
                     if not vin_txid == '0000000000000000000000000000000000000000000000000000000000000000':
-                        vin_tx_json = rpc_server.getrawtransaction(vin_txid, 1)
+                        try:
+                            vin_tx_json = rpc_server.getrawtransaction(vin_txid, 1)
+                        except:
+                            raise RPCError()
 
                         for vo_json in vin_tx_json.get(u'vout'):
                             spk_json = vo_json.get(u'scriptPubKey')

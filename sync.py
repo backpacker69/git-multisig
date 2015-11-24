@@ -106,7 +106,7 @@ class AddressSnapshot:
 
     def sync_with_blockchain(self):
         flag_change = 0
-        if (config.TXINDEX):
+        try:
             bstream = nbtutil.BlockchainStream(self.last_block + 1,\
                     nbtutil.UnspentMonitor(self.address, self.addresses))
             while 1:
@@ -124,6 +124,8 @@ class AddressSnapshot:
                         print "new unspent = ", self.unspent
                 else:
                     break
+        except:
+            pass
         return flag_change
 
 class TxSnapshot:
