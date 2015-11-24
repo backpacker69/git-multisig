@@ -45,14 +45,10 @@ The script first tries to sync the address balance with the blockchain (or downl
 An example output:
 
 ```
-    $ python main.py --recipient B5Zi5XJ1sgS6mWGu7bWJqGVnuXwiMXi7qj --amount 999.9
-    Updating address snapshot...
-    Done.
+$ python main.py --recipient B5Zi5XJ1sgS6mWGu7bWJqGVnuXwiMXi7qj --amount 999.9
+Updating address snapshot...
+Done.
 
-    This is your transaction hex:
-    010000004e05505601d1c30e31b4dd598332b155d9074f1ed98a75dacb39b1ee5aff5648f28a3ae2ab0000000000ffffffff0298929800000000001976a9140c390f04c4022947b6493cfa5beefa45e306970e88ac48a1a60b000000001976a914f8e77eac0ffff17e4294cdcae6e7b6e3c1fcb4d288ac0000000042
+This is your transaction hex:
+010000004e05505601d1c30e31b4dd598332b155d9074f1ed98a75dacb39b1ee5aff5648f28a3ae2ab0000000000ffffffff0298929800000000001976a9140c390f04c4022947b6493cfa5beefa45e306970e88ac48a1a60b000000001976a914f8e77eac0ffff17e4294cdcae6e7b6e3c1fcb4d288ac0000000042
 ```
-
-
-## 4. Misc
-There are more parameters in config.py though they don't really need to be set by the user. I'll set them when they're ready, though it would also be helpful that someone else does it.
