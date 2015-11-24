@@ -13,5 +13,6 @@ SIGN_THRESHOLD = 3
 #Format should be like this:
 #REFERENCE_URLS = {"foo" : "https://bar", "foo2" : "https://bar2", "foo3" : "https://bar3"}
 REFERENCE_URLS = {"dc-tcs" : "https://raw.githubusercontent.com/dc-tcs/flot-operations/master",
-        "jooize" : "https://raw.githubusercontent.com/jooize/flot-operations/master"}
+        "jooize" : "https://raw.githubusercontent.com/jooize/flot-operations/master",
+        "Lamz0rNewb" : "https://raw.githubusercontent.com/Lamz0rNewb/flot-operations/master"}
 
