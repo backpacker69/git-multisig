@@ -37,19 +37,13 @@ class AddressSnapshot:
 
             if os.path.isfile(unspent_path):
                 with open(unspent_path,"r") as f:
-                    l = 0
-                    cur_tx = ""
-                    amount = Decimal(0)
-                    for line in f:
-                        if l == 0:
-                            self.last_block = int(line)
-                        elif l % 3 == 1:
-                            cur_tx = line.strip()
-                        elif l % 3 == 2:
-                            amount = Decimal(line)
-                        else:
-                            self.unspent.add((cur_tx,amount,int(line.strip())))
-                        l += 1
+                    data = json.load(f)
+                    self.last_block = data['height']
+
+                    u_data = data['unspent']
+                    for entry in u_data:
+                        self.unspent.add((entry['txid'],
+                            nbtutil.NBTJSONtoAmount(entry['value']),entry['vout']))
                 return 1
         return 0
 
@@ -71,11 +65,16 @@ class AddressSnapshot:
             response = urllib2.urlopen(url_unspent)
             unspent_page = response.read()
 
-            height = int(unspent_page.split()[0])
-            if height > best_height:
-                best_height = int(unspent_page.split()[0])
-                best_page = unspent_page
-                best_id = key
+            try:
+                data = json.loads(unspent_page)
+
+                height = data['height']
+                if height > best_height:
+                    best_height = height
+                    best_page = unspent_page
+                    best_id = key
+            except:
+                print "Failed to read from ", key
 
         if best_height > 0:
             print "Newest remote snapshot for", self.address, "found at:", best_id
@@ -164,11 +163,13 @@ def git_update(git_folder):
 def write_snapshot(address_snapshot):
     path = os.path.join(config.DATA_DIR, address_snapshot.address)
     if os.path.isdir(path):
+        write_data = {'height' : int(address_snapshot.last_block)}
+        unspent_data = []
+        for t in address_snapshot.unspent:
+            unspent_data.append({'txid' : t[0], 'value' : float(t[1]),
+                'vout' : int(t[2])})
+        write_data['unspent'] =  unspent_data
         with open(os.path.join(path, "unspent"), 'w') as f:
-            f.write(str(address_snapshot.last_block) + "\n")
-            for t in address_snapshot.unspent:
-                f.write(t[0] + "\n")
-                f.write(str(t[1]) + "\n")
-                f.write(str(t[2]) + "\n")
+            json.dump(write_data,f,indent=4)
     if config.GIT_ENABLED:
         git_update(config.DATA_DIR)
