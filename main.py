@@ -60,27 +60,28 @@ if config.GIT_ENABLED:
         subprocess.call(['git','clone',config.MY_GIT, config.DATA_DIR])
 print ""
 
-a = sync.AddressSnapshot(config.ADDRESS, config.ADDRESSES)
-print "Updating address snapshot..."
-if a.sync_with_blockchain():
-    sync.write_snapshot(a)
-else:
-    print "Blockchain sync failed. Going online..."
-    b = a
-    b.load_from_url()
-    if b.last_block > a.last_block:
-        a = b
-    else:
-        print "Remote snapshots not newer. Not updating."
-    #if a.load_from_url():
-    #    sync.write_snapshot(a)
-#print "Checking other channels..."
-#sync_multiple(a)
-print "Done.\n"
+for account in config.ACCOUNTS:
+    if account['coin']=='NBT':
+        a = sync.AddressSnapshot(account['address'], account['addresses'])
+        print "Updating address snapshot for:", account['name']
+        if a.sync_with_blockchain():
+            sync.write_snapshot(a)
+        else:
+            print "Blockchain sync failed. Going online..."
+            b = a
+            b.load_from_url()
+            if b.last_block > a.last_block:
+                a = b
+            else:
+                print "Remote snapshots not newer. Not updating."
+            #if a.load_from_url():
+            #    sync.write_snapshot(a)
+        #print "Checking other channels..."
+        #sync_multiple(a)
+        print "Done.\n"
 
-if cli_args.amount and cli_args.recipient:
-    print "This is your transaction hex:"
-    print nbtutil.create_raw_transaction(cli_args.amount, a, cli_args.recipient)
-else:
-    print "Please specify recipient and amount!"
-
+        if cli_args.amount and cli_args.recipient:
+            print "This is your transaction hex:"
+            print nbtutil.create_raw_transaction(cli_args.amount, a, cli_args.recipient)
+        else:
+            print "Please specify recipient and amount!"

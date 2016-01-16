@@ -25,12 +25,14 @@ rpc_server = jsonrpc.ServiceProxy("http://" + config.RPC_USERNAME + ":" +\
         config.RPC_PASSWORD + "@127.0.0.1:" + str(config.RPC_PORT))
 
 try:
-    s = rpc_server.addmultisigaddress(config.SIGN_THRESHOLD, config.PUBKEYS, config.ACCOUNT)
-    print "Added multisig address to client, label =", config.ACCOUNT
-    if s == config.ADDRESS:
-        print "Multisig address seems valid."
-    else:
-        print "Address does not match given public keys (note that order matters)"
+    for account in config.ACCOUNTS:
+        if account['coin']=='NBT':
+            s = rpc_server.addmultisigaddress(account['sign_threshold'], account['pubkeys'], account['name'])
+            print "Added multisig address to client, label =", account['name']
+            if s == account['address']:
+                print "Multisig address seems valid."
+            else:
+                print "Address does not match given public keys (note that order matters)"
 except:
     print "Error verifying multisig address!"
 
